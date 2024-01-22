@@ -1,4 +1,4 @@
-const storageKey = 'cards';
+const storageKey = 'cards-app';
 const storageData = localStorage.getItem(storageKey);
 const initialData = storageData ? JSON.parse(storageData) : {firstColumn: [], secondColumn: [], thirdColumn: []};
 
@@ -43,7 +43,7 @@ let app = new Vue({
           <input id="InputFiv" v-model="inputFiv">
         </p>
         <p class="form-p button">
-          <input type="submit" value="Создать">
+          <input type="submit" value="Создать" :disabled="!isFormValid">
         </p>
       </form>
       <div class="columns" style="display: flex; justify-content: space-evenly;">
@@ -108,10 +108,10 @@ let app = new Vue({
       return (
         this.groupName !== null &&
         this.groupName.trim() !== '' &&
-        [this.inputOne, this.inputTwo, this.inputThr, this.inputFor, this.inputFiv].some(input => input !== null && input.trim() !== '')
+        this.hasValidInputs([this.inputOne, this.inputTwo, this.inputThr, this.inputFor, this.inputFiv])
       );
     },
-    isGroupLastItemDisabled() {
+    LastItemDisabled() {
       return this.firstColumn.map(group => {
         if (this.secondColumn.length >= 5 && group.items.length > 0) {
           const lastUncheckedItem = group.items.slice().reverse().find(item => !item.checked);
@@ -122,27 +122,30 @@ let app = new Vue({
     },
     isDisabled() {
       return function (groupIndex, item) {
-        return item.checked || this.isGroupLastItemDisabled[groupIndex] === item;
+        return item.checked || this.LastItemDisabled[groupIndex] === item;
       };
     },
   },
   methods: {
     addCard() {
-        const inputs = [this.inputOne, this.inputTwo, this.inputThr, this.inputFor, this.inputFiv];
-        const validInputs = inputs.filter(input => input !== null && input.trim() !== '');
-        const numItems = Math.max(3, Math.min(5, validInputs.length));
-        if (this.groupName) {
-          const newGroup = {
-            id: Date.now(),
-            groupName: this.groupName,
-            items: validInputs.slice(0, numItems).map(text => ({ text, checked: false }))
-          }
-          if (this.firstColumn.length < 3) {
-            this.firstColumn.push(newGroup)
-          }
+      const inputs = [this.inputOne, this.inputTwo, this.inputThr, this.inputFor, this.inputFiv];
+      const validInputs = inputs.filter(input => input !== null && input.trim() !== '');
+      const numItems = Math.max(3, Math.min(5, validInputs.length));
+      if (this.groupName && this.hasValidInputs(validInputs)) {
+        const newGroup = {
+          id: Date.now(),
+          groupName: this.groupName,
+          items: validInputs.slice(0, numItems).map(text => ({ text, checked: false }))
+        };
+        if (this.firstColumn.length < 3) {
+          this.firstColumn.push(newGroup);
         }
-        this.groupName = null, this.inputOne = null, this.inputTwo = null, this.inputThr = null, this.inputFor = null, this.inputFiv = null
-      },
+      }
+    },
+    hasValidInputs(inputs) {
+        const nonEmptyInputs = inputs.filter(input => input !== null && input.trim() !== '');
+        return nonEmptyInputs.length >= 3 && nonEmptyInputs.length <= 5;
+    },
     updateProgress(card) {
       const checkedCount = card.items.filter(item => item.checked).length;
       const progress = (checkedCount / card.items.length) * 100;
@@ -153,28 +156,28 @@ let app = new Vue({
       this.checkMoveCard();
     },
     MoveFirst() {
-        this.firstColumn.forEach(card => {
-          const progress = (card.items.filter(item => item.checked).length / card.items.length) * 100;
-          const isMaxSecondColumn = this.secondColumn.length >= 5;
-          if (progress >= 50 && !isMaxSecondColumn) {
-            this.secondColumn.push(card);
-            this.firstColumn.splice(this.firstColumn.indexOf(card), 1);
-            this.MoveSecond();
-          }
-        });
-      },
-      MoveSecond() {
-        this.secondColumn.forEach(card => {
-          const progress = (card.items.filter(item => item.checked).length / card.items.length) * 100;
-          if (progress === 100) {
-            card.isComplete = true;
-            card.lastChecked = new Date().toLocaleString();
-            this.thirdColumn.push(card);
-            this.secondColumn.splice(this.secondColumn.indexOf(card), 1);
-            this.MoveFirst();
-          }
-        })
-      },
+      this.firstColumn.forEach(card => {
+        const progress = (card.items.filter(item => item.checked).length / card.items.length) * 100;
+        const isMaxSecondColumn = this.secondColumn.length >= 5;
+        if (progress >= 50 && !isMaxSecondColumn) {
+          this.secondColumn.push(card);
+          this.firstColumn.splice(this.firstColumn.indexOf(card), 1);
+          this.MoveSecond();
+        }
+      });
+    },
+    MoveSecond() {
+      this.secondColumn.forEach(card => {
+        const progress = (card.items.filter(item => item.checked).length / card.items.length) * 100;
+        if (progress === 100) {
+          card.isComplete = true;
+          card.lastChecked = new Date().toLocaleString();
+          this.thirdColumn.push(card);
+          this.secondColumn.splice(this.secondColumn.indexOf(card), 1);
+          this.MoveFirst();
+        }
+      });
+    },
     saveData() {
       const data = {
         firstColumn: this.firstColumn,
@@ -186,6 +189,6 @@ let app = new Vue({
     checkMoveCard() {
       this.MoveFirst();
       this.MoveSecond();
-    },
+    }
   }
-})
+});
